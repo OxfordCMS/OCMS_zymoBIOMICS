@@ -174,7 +174,7 @@ truePosRate <- function(relab, annotations, level="species"){
 ```{r choose.annotations, echo=FALSE, message=FALSE}
 
 if (annotations == "NCBI" & sequence_type == "16S"){
-    annotations = anno_ncbi_16s,
+    annotations = anno_ncbi_16s
     level = "genus"}
 else if (annotations == "GTDB" & sequence_type == "16S"){
     annotations = anno_gtdb_16s
