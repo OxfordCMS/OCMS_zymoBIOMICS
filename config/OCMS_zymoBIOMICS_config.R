@@ -1,0 +1,19 @@
+###################################################################
+###################################################################
+# Configuration file for analysing zymoBIOTICS community
+# standards
+###################################################################
+###################################################################
+
+# file with counts
+counts_table=""
+
+# annotations - choose from "NCBI" or "GTDB"
+annotations = "GTDB"
+
+# type of sequencing - choose from "16S" or "shotgun"
+sequence_type = "shotgun"
+
+# which columns in the data correspond to standards. This should
+# be a regular R vector of column names e.g. c("sample1", "sample2")
+standards_columns=""

@@ -1,0 +1,220 @@
+# Analysis of DNA and cellular microbiome community standards
+
+## Overview
+
+An important aspect of microbiome profiling studies is to assess the accuaracy of the profiling work-flow. Of course, biases can be introduced at multiple levels of analysis includingn sample collection, DNA extraction, library preparation and sequencing. While we may not be able to mitigate all of the biases, we are able to assess their impact by processing and sequencing a set of microbiome standards. We currently utilise the zymoBIOMICS community standard that consists of 8 bacterial strains and 2 fungal strains. We are able to assess biases at two levels:
+
+* Efficiency of DNA extraction using the cellular standards
+* Effciency and accuracy of sequencing and informatics workflows (somewhat confounded) using DNA standards.
+
+Information on the standards can be found [here](https://files.zymoresearch.com/protocols/_d6305_d6306_zymobiomics_microbial_community_dna_standard.pdf).
+
+
+## Data analysis
+
+The analysis below contains two methods that we use (and are recommended) to analyse the community standards. The first is the balance between false positive and false negative detection of species that are supposed to be present i.e. false positives are the detection of taxa that are not part of the community and false negatives represent un-detection of taxa that should be present. The second method is looking at how accurately the composition (i.e. the % of reads assigned to each standard taxon) represents the expected composition of the community standard. Below is a table of the taxa that are present in the community standard and the expected compostion based on either 16S rRNA amplicon sequencing analysis or shotgun metagenomics analysis.
+
+
+|Species                   | 16S rRNA abundance % | Shotgun metagenomics abundance % |
+|--------------------------|----------------------|--------------------------------- |
+|Pseudomonas aeruginosa    | 4.2                  | 6.1                              |
+|Escherichia coli          | 10.1                 | 8.5                              |
+|Salmonella enterica       | 10.4                 | 8.7                              |
+|Lactobacillus fermentum   | 18.4                 | 21.6                             |
+|Enterococcus faecalis     | 9.9                  | 14.6                             |
+|Staphylococcus aureus     | 15.5                 | 15.2                             |
+|Listeria monocytogenes    | 14.1                 | 13.9                             |
+|Bacillus subtilis         | 17.4                 | 10.3                             |
+|Saccharomyces cerevisiae  | NA                   | 0.57                             |
+|Cryptococcus neoformans   | NA                   | 0.37                             |
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(cache = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(out.extra = '')
+knitr::opts_knit$set(root.dir=".")
+#knitr::opts_chunk$set(fig.pos = 'H')
+```
+
+```{r load.libraries, echo=FALSE, message=FALSE}
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+
+# configuration
+source("OCMS_zymoBIOMICS_config.R")
+```
+
+```{r annotations, exho=FALSE, message=FALSE}
+
+# build annotations and abundances depending on the methods and
+# databases that were used in the analysis
+
+#####################################################################
+# NCBI data for 16S analysis
+#####################################################################
+
+anno_ncbi_16s <- data.frame(species = c("Pseudomonas_aeruginosa",
+                                        "Escherichia_coli",
+					"Salmonella_enterica",
+					"Lactobacillus_fermentum",
+					"Enterococcus_faecalis",
+					"Staphylococcus_aureus",
+					"Listeria_monocytogenes",
+					"Bacillus_subtilis"),
+			    genus = c("Pseudomonas",
+			              "Escherichia/Shigella",
+				      "Salmonella",
+				      "Lactobacillus",
+				      "Enterococcus",
+				      "Staphylococcus",
+				      "Listeria",
+				      "Bacillus"),
+		            abundance = c(4.2,
+			                  10.1,
+			 		  10.4,
+					  18.4,
+					  9.9,
+					  15.5,
+					  14.1,
+					  17.4))
+
+#####################################################################
+# GTDB data for 16S analysis
+#####################################################################
+
+anno_gtdb_16s <- data.frame(species = c("Pseudomonas_aeruginosa",
+                                        "Escherichia_flexneri",
+					"Lactobacillus_H_fermentum",
+					"Enterococcus_faecalis",
+					"Salmonella_enterica",
+					"Staphylococcus_aureus",
+					"Listeria_monocytogenes",
+					"Bacillus_subtilis"))
+
+anno_gtdb_16s$genus <- anno_ncbi_16s$genus
+anno_gtdb_16s$abundance <- anno_ncbi_16s$abundance
+
+#####################################################################
+# NCBI data for shotgun
+#####################################################################
+
+anno_ncbi_shotgun <- anno_ncbi_16s
+
+# add fungi
+fungi <- data.frame(species = c("Saccharomyces cerevisiae", "Cryptococcus neoformans"),
+                    genus = c("Saccharomyces", "Cryptococcus"),
+		    abundance = c(0.57, 0.37))
+anno_ncbi_shotgun <- bind_rows(anno_ncbi_shotgun, fungi)
+
+#####################################################################
+# GTDB data for shotgun
+#####################################################################
+
+# NB - The fungi aren't present in the GTDB so have to
+# sort the abundances accordingly
+anno_gtdb_shotgun <- anno_gtdb_16s
+gtdb_abundance <- anno_ncbi_shotgun$abundance + 0.1175
+anno_gtdb_abundance <- gtdb_abundance[1:8]
+```
+
+```{r utility_functions, echo=FALSE, message=FALSE}
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+relab <- function(counts){
+
+    relab <- (sweep(counts, 2, colSums(counts), "/"))*100
+    return(relab)
+    }
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+truePosRate <- function(relab, annotations, level="species"){
+
+    result <- list()
+    for (i in 1:ncol(relab)){
+        ab <- data.frame(taxon=rownames(relab), abundance = relab[,i])
+	ab <- ab[ab$abundance > 0,]
+	ab <- order(ab$abundance, decreasing=TRUE)
+        trues <- 0
+	falses <- 0
+	tps <- c()
+	labels <- c()
+	for (j in 1:nrow(ab)){
+            if (ab[j,]$taxon %in% annotations[,level]){
+	        trues = trues + 1
+		labels <- append(labels, "TP")
+	    }
+	    else{
+	        falses = falses + 1
+		labels <- append(labels, "FP")
+	    }
+	    tp <- trues/(trues + falses)
+            tps <- append(tps, tp)		
+        }
+        res <- data.frame(rank = seq(1:nrow(ab)),
+	                  true.pos.rate = tps,
+			  sample = colnames(relab[,i]),
+			  label = labels
+			  )
+        results[[i]] <- res
+    }
+    results <- bind_rows(results)
+}
+
+```
+
+```{r choose.annotations, echo=FALSE, message=FALSE}
+
+if (annotations == "NCBI" & sequence_type == "16S"){
+    annotations = anno_ncbi_16s,
+    level = "genus"}
+else if (annotations == "GTDB" & sequence_type == "16S"){
+    annotations = anno_gtdb_16s
+    level = "genus"
+}
+else if (annotations == "NCBI" & sequence_type == "shotgun"){
+    annotations = anno_ncbi_shotgun
+    level = "species"
+}
+else if (annotations == "GTDB" & sequence_type == "shotgun"){
+    annotations = anno_gtdb_shotgun
+    level = "species"
+}
+```
+
+```{r read.data, echo=FALSE, message=FALSE}
+
+counts <- read.csv(counts_table, header=TRUE, stringsAsFactors=FALSE, sep="\t", row.names=1)
+
+# subset based on column names
+counts <- counts[,standards_columns]
+
+relabundance <- relab(counts)
+```
+
+# True positive rate
+
+Below is a plot of the true positive rate (ordered by abundance high -> low).  
+
+```{r tp.rate, echo=FALSE, message=FALSE, fig.height=5, fig.width=5}
+
+tp.rate <- truePosRate(relabundance, annotations, level=level)
+ggplot(tp.rate, aes(x=rank, y=true.pos.rate, colour=label, group=sample)) + geom_point() + theme_bw() + scale_colour_manual(values=c("grey", "purple"))
+
+```
+
+
+# Composition analysis
+
+
+# Correlation analysis
+
+
