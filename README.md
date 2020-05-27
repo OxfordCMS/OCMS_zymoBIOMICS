@@ -2,6 +2,21 @@
 
 This repository contains an rmarkdown file that builds a report of the preformance of a sequencing experiment (16S rRNA amplicon or shotgun metagenomics) based on [zymoBIOMICS microbial community standards](https://www.zymoresearch.com/collections/zymobiomics-microbial-community-standards). This is in order to give an overall impression of any biases that may be present in a study.
 
+
+## Dependencies
+
+The following dependencies (R packages) are required to run the report. The versions provided below are the versions that I have run the analysis with. It has not been tested on all package versions.
+
+| Package       | Version |
+|---------------|---------|
+| rmarkdown     | 1.16    |
+| ggplot2       | 3.2.1   |
+| dplyr         | 0.8.0.1 |
+| gridExtra     | 2.3     |
+| RColorBrewer  | 1.1-2   |
+| reshape       | 0.8.8   |
+
+
 ## Input
 
 There are two input files that are required to build a report:

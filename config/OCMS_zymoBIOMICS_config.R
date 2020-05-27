@@ -17,3 +17,7 @@ sequence_type = "shotgun"
 # which columns in the data correspond to standards. This should
 # be a regular R vector of column names e.g. c("sample1", "sample2")
 standards_columns=""
+
+# define any cutoffs for true positive and composition analysis
+species_cutoff=0.01
+genus_cutoff=0.01

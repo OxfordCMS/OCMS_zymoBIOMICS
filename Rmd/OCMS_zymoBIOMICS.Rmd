@@ -1,3 +1,8 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
 # Analysis of DNA and cellular microbiome community standards
 
 ## Overview
@@ -12,7 +17,7 @@ Information on the standards can be found [here](https://files.zymoresearch.com/
 
 ## Data analysis
 
-The analysis below contains two methods that we use (and are recommended) to analyse the community standards. The first is the balance between false positive and false negative detection of species that are supposed to be present i.e. false positives are the detection of taxa that are not part of the community and false negatives represent un-detection of taxa that should be present. The second method is looking at how accurately the composition (i.e. the % of reads assigned to each standard taxon) represents the expected composition of the community standard. Below is a table of the taxa that are present in the community standard and the expected compostion based on either 16S rRNA amplicon sequencing analysis or shotgun metagenomics analysis.
+The analysis below contains two methods that we use (and are recommended) to analyse the community standards. The first is an analysis of the true postive rate. This determines whether we pull back everything we expect in addition to any false positives. The second method is looking at how accurately the composition (i.e. the % of reads assigned to each standard taxon) represents the expected composition of the community standard. Below is a table of the taxa that are present in the community standard and the expected compostion based on either 16S rRNA amplicon sequencing analysis or shotgun metagenomics analysis.
 
 
 |Species                   | 16S rRNA abundance % | Shotgun metagenomics abundance % |
@@ -42,6 +47,8 @@ knitr::opts_knit$set(root.dir=".")
 library(ggplot2)
 library(dplyr)
 library(gridExtra)
+library(RColorBrewer)
+library(reshape)
 
 # configuration
 source("OCMS_zymoBIOMICS_config.R")
@@ -57,56 +64,63 @@ source("OCMS_zymoBIOMICS_config.R")
 #####################################################################
 
 anno_ncbi_16s <- data.frame(species = c("Pseudomonas_aeruginosa",
-                                        "Escherichia_coli",
-					"Salmonella_enterica",
-					"Lactobacillus_fermentum",
-					"Enterococcus_faecalis",
-					"Staphylococcus_aureus",
-					"Listeria_monocytogenes",
-					"Bacillus_subtilis"),
-			    genus = c("Pseudomonas",
-			              "Escherichia/Shigella",
-				      "Salmonella",
-				      "Lactobacillus",
-				      "Enterococcus",
-				      "Staphylococcus",
-				      "Listeria",
-				      "Bacillus"),
-		            abundance = c(4.2,
-			                  10.1,
-			 		  10.4,
-					  18.4,
-					  9.9,
-					  15.5,
-					  14.1,
-					  17.4))
+"Escherichia_coli",
+"Salmonella_enterica",
+"Lactobacillus_fermentum",
+"Enterococcus_faecalis",
+"Staphylococcus_aureus",
+"Listeria_monocytogenes",
+"Bacillus_subtilis"),
+genus = c("Pseudomonas",
+"Escherichia/Shigella",
+"Salmonella",
+"Lactobacillus",
+"Enterococcus",
+"Staphylococcus",
+"Listeria",
+"Bacillus"),
+Expected = c(4.2,
+10.1,
+10.4,
+18.4,
+9.9,
+15.5,
+14.1,
+17.4))
+
 
 #####################################################################
 # GTDB data for 16S analysis
 #####################################################################
 
 anno_gtdb_16s <- data.frame(species = c("Pseudomonas_aeruginosa",
-                                        "Escherichia_flexneri",
-					"Lactobacillus_H_fermentum",
-					"Enterococcus_faecalis",
-					"Salmonella_enterica",
-					"Staphylococcus_aureus",
-					"Listeria_monocytogenes",
-					"Bacillus_subtilis"))
-
-anno_gtdb_16s$genus <- anno_ncbi_16s$genus
-anno_gtdb_16s$abundance <- anno_ncbi_16s$abundance
+"Escherichia_flexneri",
+"Salmonella_enterica",
+"Lactobacillus_H_fermentum",
+"Enterococcus_faecalis",
+"Staphylococcus_aureus",
+"Listeria_monocytogenes_B",
+"Bacillus_marinus"),
+genus = c("Pseudomonas",
+"Escherichia",
+"Salmonella",
+"Lactobacillus_H",
+"Enterococcus",
+"Staphylococcus",
+"Listeria",
+"Bacillus"))
+anno_gtdb_16s$Expected <- anno_ncbi_16s$Expected
 
 #####################################################################
 # NCBI data for shotgun
 #####################################################################
 
 anno_ncbi_shotgun <- anno_ncbi_16s
-
+anno_ncbi_shotgun$Expected <- c(6.1, 8.5, 8.7, 21.6, 14.6, 15.2, 13.9, 10.3)
 # add fungi
 fungi <- data.frame(species = c("Saccharomyces cerevisiae", "Cryptococcus neoformans"),
-                    genus = c("Saccharomyces", "Cryptococcus"),
-		    abundance = c(0.57, 0.37))
+genus = c("Saccharomyces", "Cryptococcus"),
+Expected = c(0.57, 0.37))
 anno_ncbi_shotgun <- bind_rows(anno_ncbi_shotgun, fungi)
 
 #####################################################################
@@ -116,8 +130,8 @@ anno_ncbi_shotgun <- bind_rows(anno_ncbi_shotgun, fungi)
 # NB - The fungi aren't present in the GTDB so have to
 # sort the abundances accordingly
 anno_gtdb_shotgun <- anno_gtdb_16s
-gtdb_abundance <- anno_ncbi_shotgun$abundance + 0.1175
-anno_gtdb_abundance <- gtdb_abundance[1:8]
+gtdb_abundance <- anno_ncbi_shotgun$Expected + 0.1175
+anno_gtdb_shotgun$Expected <- gtdb_abundance[1:8]
 ```
 
 ```{r utility_functions, echo=FALSE, message=FALSE}
@@ -136,37 +150,58 @@ relab <- function(counts){
 #####################################################################
 #####################################################################
 
-truePosRate <- function(relab, annotations, level="species"){
+truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
 
+    # sort out rownames to match annotations
+    if (level == "species"){
+        shortnames <- unlist(strsplit(rownames(relab), "\\|"))
+        shortnames <- gsub("s__", "", shortnames[seq(7, length(shortnames), 7)])
+        
+        # we can't use unassigned
+        relab <- relab[shortnames != "unassigned",]
+        shortnames <- shortnames[shortnames != "unassigned"]
+        
+        rownames(relab) <- shortnames
+    }else if (level == "genus"){
+        shortnames <- unlist(strsplit(rownames(relab), "\\|"))
+        shortnames <- gsub("g__", "", shortnames[seq(6, length(shortnames), 7)])
+        relab <- aggregate(relab, list(shortnames), sum)
+        rownames(relab) <- relab$Group.1
+        relab <- relab[,2:ncol(relab)]
+    }
+
+    # calculate true positive rate
     result <- list()
     for (i in 1:ncol(relab)){
-        ab <- data.frame(taxon=rownames(relab), abundance = relab[,i])
-	ab <- ab[ab$abundance > 0,]
-	ab <- order(ab$abundance, decreasing=TRUE)
-        trues <- 0
-	falses <- 0
-	tps <- c()
-	labels <- c()
-	for (j in 1:nrow(ab)){
-            if (ab[j,]$taxon %in% annotations[,level]){
-	        trues = trues + 1
-		labels <- append(labels, "TP")
-	    }
-	    else{
-	        falses = falses + 1
-		labels <- append(labels, "FP")
-	    }
-	    tp <- trues/(trues + falses)
-            tps <- append(tps, tp)		
+    ab <- data.frame(taxon=rownames(relab), abundance = relab[,i])
+    ab <- ab[ab$abundance >= cutoff,]
+    ab <- ab[order(ab$abundance, decreasing=TRUE),]
+
+    trues <- 0
+    falses <- 0
+    tps <- c()
+    labels <- c()
+    for (j in 1:nrow(ab)){
+        if (ab[j,]$taxon %in% annotations[,level]){
+            trues = trues + 1
+            labels <- append(labels, "TP")
         }
-        res <- data.frame(rank = seq(1:nrow(ab)),
-	                  true.pos.rate = tps,
-			  sample = colnames(relab[,i]),
-			  label = labels
-			  )
-        results[[i]] <- res
+        else{
+            falses = falses + 1
+            labels <- append(labels, "FP")
+        }
+        tp <- trues/(trues + falses)
+        tps <- append(tps, tp)
     }
-    results <- bind_rows(results)
+    sample <- rep(colnames(relab)[i], length(tps))
+    res <- data.frame(rank = seq(1:length(tps)),
+    true.pos.rate = tps,
+    sample = sample,
+    label = labels
+    )
+    result[[i]] <- res
+    }
+    result <- bind_rows(result)
 }
 
 ```
@@ -174,20 +209,11 @@ truePosRate <- function(relab, annotations, level="species"){
 ```{r choose.annotations, echo=FALSE, message=FALSE}
 
 if (annotations == "NCBI" & sequence_type == "16S"){
-    annotations = anno_ncbi_16s
-    level = "genus"}
-else if (annotations == "GTDB" & sequence_type == "16S"){
-    annotations = anno_gtdb_16s
-    level = "genus"
-}
-else if (annotations == "NCBI" & sequence_type == "shotgun"){
-    annotations = anno_ncbi_shotgun
-    level = "species"
-}
-else if (annotations == "GTDB" & sequence_type == "shotgun"){
-    annotations = anno_gtdb_shotgun
-    level = "species"
-}
+annotations = anno_ncbi_16s}else if (annotations == "GTDB" & sequence_type == "16S"){
+annotations = anno_gtdb_16s}else if (annotations == "NCBI" & sequence_type == "shotgun"){
+annotations = anno_ncbi_shotgun}else if (annotations == "GTDB" & sequence_type == "shotgun"){
+annotations = anno_gtdb_shotgun}
+
 ```
 
 ```{r read.data, echo=FALSE, message=FALSE}
@@ -196,7 +222,6 @@ counts <- read.csv(counts_table, header=TRUE, stringsAsFactors=FALSE, sep="\t", 
 
 # subset based on column names
 counts <- counts[,standards_columns]
-
 relabundance <- relab(counts)
 ```
 
@@ -204,17 +229,94 @@ relabundance <- relab(counts)
 
 Below is a plot of the true positive rate (ordered by abundance high -> low).  
 
-```{r tp.rate, echo=FALSE, message=FALSE, fig.height=5, fig.width=5}
+## Species
 
-tp.rate <- truePosRate(relabundance, annotations, level=level)
-ggplot(tp.rate, aes(x=rank, y=true.pos.rate, colour=label, group=sample)) + geom_point() + theme_bw() + scale_colour_manual(values=c("grey", "purple"))
+```{r tp.rate.se, echo=FALSE, message=FALSE, fig.height=5, fig.width=5}
 
+tp.rate.sp <- truePosRate(relabundance, annotations, level="species", cutoff=species_cutoff)
+ggplot(tp.rate.sp, aes(x=rank, y=true.pos.rate, colour=label, group=sample)) + geom_point() + theme_bw() + ylab("TP / (TP + FP)") + scale_colour_manual(values=c("grey", "purple")) + facet_wrap(~sample, scale="free")
+```
+
+
+## Genus
+
+```{r tp.rate.ge, echo=FALSE, message=FALSE, fig.height=5, fig.width=5}
+tp.rate.ge <- truePosRate(relabundance, annotations, level="genus", cutoff=genus_cutoff)
+ggplot(tp.rate.ge, aes(x=rank, y=true.pos.rate, colour=label, group=sample)) + geom_point() + theme_bw() + ylab("TP / (TP + FP)") + scale_colour_manual(values=c("grey", "purple")) + facet_wrap(~sample, scale="free")
 ```
 
 
 # Composition analysis
 
+It is useful to visualise how the predicted composition of the standards compares with the expected composition. Below we plot this at species and genus levels.
+
+## Species
+
+```{r composition.species, echo=FALSE, message=FALSE, fig.height=5, fig.width=7}
+
+toplot.sp <- relabundance
+species <- unlist(strsplit(rownames(toplot.sp), "\\|"))
+species <- gsub("s__", "", species[seq(7, length(species),7)])
+toplot.sp$species <- species
+known.sp <- merge(annotations, toplot.sp, by.x="species", by.y="species", all.x=TRUE, all.y=FALSE)
+
+# set up colours
+colours.sp <- brewer.pal(n=nrow(known.sp), name = "Set3")
+known.sp.m <- melt(known.sp)
+ggplot(known.sp.m, aes(x=variable, y=value, fill=species)) + geom_bar(stat="identity") + theme_bw() + scale_fill_manual(values=colours.sp) + xlab("") + ylab("% reads")
+```
+
+## Genus
+
+```{r composition.genus, echo=FALSE, message=FALSE, fig.height=5, fig.width=7}
+
+toplot.ge <- relabundance
+genus <- unlist(strsplit(rownames(toplot.sp), "\\|"))
+genus <- gsub("g__", "", genus[seq(6, length(genus),7)])
+toplot.ge <- aggregate(toplot.ge, list(genus), sum)
+rownames(toplot.ge) <- toplot.ge$Group.1
+toplot.ge <- toplot.ge[,2:ncol(toplot.ge)]
+toplot.ge$genus <- rownames(toplot.ge)
+known.ge <- merge(annotations, toplot.ge, by.x="genus", by.y="genus", all.x=TRUE, all.y=FALSE)
+
+# set up colours
+colours.ge <- brewer.pal(n=nrow(known.ge), name = "Set3")
+known.ge.m <- melt(known.ge)
+ggplot(known.ge.m, aes(x=variable, y=value, fill=species)) + geom_bar(stat="identity") + theme_bw() + scale_fill_manual(values=colours.ge) + xlab("") + ylab("% reads")
+
+```
 
 # Correlation analysis
 
+In addition to visualising the composition it is interesting to look at the correlations between taxa abundances and expected taxa abundances.
 
+## Species
+
+```{r correlation.species, echo=FALSE, message=FALSE, fig.height=5, fig.width=10}
+grobs.sp <- list()
+for (i in 4:ncol(known.sp)){
+sample <- colnames(known.sp)[i]
+dat <- data.frame(Expected = known.sp$Expected)
+dat[,sample] <- unlist(known.sp[,i])
+p <- ggplot(dat, aes_string(x=sample, y="Expected")) + geom_point() + theme_bw() + stat_smooth(method="lm")
+grobs.sp[[i-3]] <- p
+}
+grid.arrange(grobs=grobs.sp, ncol=2)
+
+```
+
+
+## Genus
+
+```{r correlation.genus, echo=FALSE, message=FALSE, fig.height=5, fig.width=10}
+grobs.ge <- list()
+for (i in 4:ncol(known.ge)){
+sample <- colnames(known.ge)[i]
+dat <- data.frame(Expected = known.ge$Expected)
+dat[,sample] <- unlist(known.ge[,i])
+p <- ggplot(dat, aes_string(x=sample, y="Expected")) + geom_point() + theme_bw() + stat_smooth(method="lm")
+grobs.ge[[i-3]] <- p
+}
+grid.arrange(grobs=grobs.ge, ncol=2)
+
+```
