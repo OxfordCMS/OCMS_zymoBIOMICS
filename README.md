@@ -50,6 +50,10 @@ sequence_type = "shotgun"
 # which columns in the data correspond to standards. This should
 # be a regular R vector of column names e.g. c("sample1", "sample2")
 standards_columns=c("CMS0016_002", "CMS0016_016")
+
+# define cutoffs for true positive analysis
+species_cutoff=0.01
+genus_cutoff=0.01
 ```
 
 ## Rendering the report
