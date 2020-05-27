@@ -62,6 +62,7 @@ Once the configuration file is complete you can render the report as you would a
 
 ```
 rmarkdown::render("OCMS_zymoBIOMICS.Rmd", output_format="html_document")
+```
 
 This will produce an html report in your current working directory.
 
