@@ -240,7 +240,7 @@ ggplot(tp.rate.sp, aes(x=rank, y=true.pos.rate, colour=label, group=sample)) + g
 
 ## Genus
 
-```{r tp.rate.ge, echo=FALSE, message=FALSE, fig.height=5, fig.width=5}
+```{r tp.rate.ge, echo=FALSE, message=FALSE, fig.height=5, fig.width=10}
 tp.rate.ge <- truePosRate(relabundance, annotations, level="genus", cutoff=genus_cutoff)
 ggplot(tp.rate.ge, aes(x=rank, y=true.pos.rate, colour=label, group=sample)) + geom_point() + theme_bw() + ylab("TP / (TP + FP)") + scale_colour_manual(values=c("grey", "purple")) + facet_wrap(~sample, scale="free")
 ```
