@@ -54,7 +54,7 @@ library(reshape)
 source("OCMS_zymoBIOMICS_config.R")
 ```
 
-```{r annotations, exho=FALSE, message=FALSE}
+```{r annotations, echo=FALSE, message=FALSE}
 
 # build annotations and abundances depending on the methods and
 # databases that were used in the analysis
@@ -231,7 +231,7 @@ Below is a plot of the true positive rate (ordered by abundance high -> low).
 
 ## Species
 
-```{r tp.rate.se, echo=FALSE, message=FALSE, fig.height=5, fig.width=5}
+```{r tp.rate.se, echo=FALSE, message=FALSE, fig.height=5, fig.width=10}
 
 tp.rate.sp <- truePosRate(relabundance, annotations, level="species", cutoff=species_cutoff)
 ggplot(tp.rate.sp, aes(x=rank, y=true.pos.rate, colour=label, group=sample)) + geom_point() + theme_bw() + ylab("TP / (TP + FP)") + scale_colour_manual(values=c("grey", "purple")) + facet_wrap(~sample, scale="free")
