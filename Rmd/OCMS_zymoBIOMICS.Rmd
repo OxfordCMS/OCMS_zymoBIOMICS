@@ -22,16 +22,16 @@ The analysis below contains two methods that we use (and are recommended) to ana
 
 |Species                   | 16S rRNA abundance % | Shotgun metagenomics abundance % |
 |--------------------------|----------------------|--------------------------------- |
-|Pseudomonas aeruginosa    | 4.2                  | 6.1                              |
-|Escherichia coli          | 10.1                 | 8.5                              |
-|Salmonella enterica       | 10.4                 | 8.7                              |
-|Lactobacillus fermentum   | 18.4                 | 21.6                             |
-|Enterococcus faecalis     | 9.9                  | 14.6                             |
-|Staphylococcus aureus     | 15.5                 | 15.2                             |
-|Listeria monocytogenes    | 14.1                 | 13.9                             |
-|Bacillus subtilis         | 17.4                 | 10.3                             |
-|Saccharomyces cerevisiae  | NA                   | 0.57                             |
-|Cryptococcus neoformans   | NA                   | 0.37                             |
+|Pseudomonas aeruginosa    | 4.2                  | 12                               |
+|Escherichia coli          | 10.1                 | 12                               |
+|Salmonella enterica       | 10.4                 | 12                               |
+|Lactobacillus fermentum   | 18.4                 | 12                               |
+|Enterococcus faecalis     | 9.9                  | 12                               |
+|Staphylococcus aureus     | 15.5                 | 12                               |
+|Listeria monocytogenes    | 14.1                 | 12                               |
+|Bacillus subtilis         | 17.4                 | 12                               |
+|Saccharomyces cerevisiae  | NA                   | 2                                |
+|Cryptococcus neoformans   | NA                   | 2                                |
 
 
 ```{r setup, include=FALSE}
@@ -117,11 +117,11 @@ anno_gtdb_16s$Expected <- anno_ncbi_16s$Expected
 #####################################################################
 
 anno_ncbi_shotgun <- anno_ncbi_16s
-anno_ncbi_shotgun$Expected <- c(6.1, 8.5, 8.7, 21.6, 14.6, 15.2, 13.9, 10.3)
+anno_ncbi_shotgun$Expected <- c(12, 12, 12, 12, 12, 12, 12, 12)
 # add fungi
 fungi <- data.frame(species = c("Saccharomyces cerevisiae", "Cryptococcus neoformans"),
 genus = c("Saccharomyces", "Cryptococcus"),
-Expected = c(0.57, 0.37))
+Expected = c(2, 2))
 anno_ncbi_shotgun <- bind_rows(anno_ncbi_shotgun, fungi)
 
 #####################################################################
@@ -131,7 +131,7 @@ anno_ncbi_shotgun <- bind_rows(anno_ncbi_shotgun, fungi)
 # NB - The fungi aren't present in the GTDB so have to
 # sort the abundances accordingly
 anno_gtdb_shotgun <- anno_gtdb_16s
-gtdb_abundance <- anno_ncbi_shotgun$Expected + 0.1175
+gtdb_abundance <- anno_ncbi_shotgun$Expected + 0.5
 anno_gtdb_shotgun$Expected <- gtdb_abundance[1:8]
 ```
 
@@ -300,7 +300,7 @@ ggplot(known.ge.m, aes(x=variable, y=value, fill=genus)) + geom_bar(stat="identi
 
 # Correlation analysis
 
-In addition to visualising the composition it is interesting to look at the correlations between taxa abundances and expected taxa abundances.
+In addition to visualising the composition it is interesting to look at the correlations between taxa abundances and expected taxa abundances. Note that correlation analyis does not make much sense for shotgun data as all of the bacterial species are at an equal abundance.
 
 ## Species
 
