@@ -49,6 +49,7 @@ library(dplyr)
 library(gridExtra)
 library(RColorBrewer)
 library(reshape)
+library(ggrepel)
 
 # configuration
 source("OCMS_zymoBIOMICS_config.R")
@@ -158,9 +159,8 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
         shortnames <- gsub("s__", "", shortnames[seq(7, length(shortnames), 7)])
         
         # we can't use unassigned
-        relab <- relab[shortnames != "unassigned",]
-        shortnames <- shortnames[shortnames != "unassigned"]
-        
+        relab <- relab[grep("unassigned", shortnames, invert=TRUE),]
+        shortnames <- shortnames[grep("unassigned", shortnames, invert=TRUE)]
         rownames(relab) <- shortnames
     }else if (level == "genus"){
         shortnames <- unlist(strsplit(rownames(relab), "\\|"))
@@ -220,10 +220,22 @@ annotations = anno_gtdb_shotgun}
 
 counts <- read.csv(counts_table, header=TRUE, stringsAsFactors=FALSE, sep="\t", row.names=1)
 
+# If it's 16S data then need to sub the ";" with "|" and change NA to unassigned
+if (sequence_type == "16S"){
+    rownames(counts) <- gsub("__-", "unassigned", gsub("_NA", "unassigned", gsub(";", "\\|", rownames(counts))))
+    rownames(counts) <- gsub("\\(.*", "", rownames(counts))}
+
+
 # subset based on column names
 counts <- counts[,standards_columns]
 relabundance <- relab(counts)
+
 ```
+
+
+## Considerations
+
+If you are using 16S data then it is prudent to just consider the genus assignments as species assignments are known to be fairly inaccurate.
 
 # True positive rate
 
@@ -282,7 +294,7 @@ known.ge <- merge(annotations, toplot.ge, by.x="genus", by.y="genus", all.x=TRUE
 # set up colours
 colours.ge <- brewer.pal(n=nrow(known.ge), name = "Set3")
 known.ge.m <- melt(known.ge)
-ggplot(known.ge.m, aes(x=variable, y=value, fill=species)) + geom_bar(stat="identity") + theme_bw() + scale_fill_manual(values=colours.ge) + xlab("") + ylab("% reads")
+ggplot(known.ge.m, aes(x=variable, y=value, fill=genus)) + geom_bar(stat="identity") + theme_bw() + scale_fill_manual(values=colours.ge) + xlab("") + ylab("% reads")
 
 ```
 
@@ -296,11 +308,13 @@ In addition to visualising the composition it is interesting to look at the corr
 grobs.sp <- list()
 for (i in 4:ncol(known.sp)){
 sample <- colnames(known.sp)[i]
-dat <- data.frame(Expected = known.sp$Expected)
+dat <- data.frame(species=known.sp$species,
+                  Expected = known.sp$Expected)
 dat[,sample] <- unlist(known.sp[,i])
-p <- ggplot(dat, aes_string(x=sample, y="Expected")) + geom_point() + theme_bw() + stat_smooth(method="lm")
+p <- ggplot(dat, aes_string(x=sample, y="Expected")) + geom_point() + theme_bw() + stat_smooth(method="lm") + geom_label_repel(label=dat$species)
 grobs.sp[[i-3]] <- p
 }
+
 grid.arrange(grobs=grobs.sp, ncol=2)
 
 ```
@@ -312,9 +326,10 @@ grid.arrange(grobs=grobs.sp, ncol=2)
 grobs.ge <- list()
 for (i in 4:ncol(known.ge)){
 sample <- colnames(known.ge)[i]
-dat <- data.frame(Expected = known.ge$Expected)
+dat <- data.frame(genus=known.ge$genus,
+                  Expected = known.ge$Expected)
 dat[,sample] <- unlist(known.ge[,i])
-p <- ggplot(dat, aes_string(x=sample, y="Expected")) + geom_point() + theme_bw() + stat_smooth(method="lm")
+p <- ggplot(dat, aes_string(x=sample, y="Expected")) + geom_point() + theme_bw() + stat_smooth(method="lm") + geom_label_repel(label=dat$genus)
 grobs.ge[[i-3]] <- p
 }
 grid.arrange(grobs=grobs.ge, ncol=2)
