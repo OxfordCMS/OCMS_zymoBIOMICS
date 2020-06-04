@@ -161,15 +161,15 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
         # we can't use unassigned
         relab <- relab[grep("unassigned", shortnames, invert=TRUE),]
         shortnames <- shortnames[grep("unassigned", shortnames, invert=TRUE)]
-        rownames(relab) <- shortnames
+                
     }else if (level == "genus"){
         shortnames <- unlist(strsplit(rownames(relab), "\\|"))
         shortnames <- gsub("g__", "", shortnames[seq(6, length(shortnames), 7)])
-        relab <- aggregate(relab, list(shortnames), sum)
-        rownames(relab) <- relab$Group.1
-        relab <- relab[,2:ncol(relab)]
     }
-
+    relab <- aggregate(relab, list(shortnames), sum)
+    rownames(relab) <- relab$Group.1
+    relab <- relab[,2:ncol(relab)]
+  
     # calculate true positive rate
     result <- list()
     for (i in 1:ncol(relab)){
@@ -222,7 +222,7 @@ counts <- read.csv(counts_table, header=TRUE, stringsAsFactors=FALSE, sep="\t", 
 
 # If it's 16S data then need to sub the ";" with "|" and change NA to unassigned
 if (sequence_type == "16S"){
-    rownames(counts) <- gsub("__-", "unassigned", gsub("_NA", "unassigned", gsub(";", "\\|", rownames(counts))))
+    rownames(counts) <- gsub("__-", "unassigned", gsub("__NA", "unassigned", gsub(";", "\\|", rownames(counts))))
     rownames(counts) <- gsub("\\(.*", "", rownames(counts))}
 
 
