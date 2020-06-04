@@ -50,6 +50,7 @@ library(gridExtra)
 library(RColorBrewer)
 library(reshape)
 library(ggrepel)
+library(ggpubr)
 
 # configuration
 source("OCMS_zymoBIOMICS_config.R")
@@ -135,7 +136,9 @@ gtdb_abundance <- anno_ncbi_shotgun$Expected + 0.5
 anno_gtdb_shotgun$Expected <- gtdb_abundance[1:8]
 ```
 
+
 ```{r utility_functions, echo=FALSE, message=FALSE}
+
 
 #####################################################################
 #####################################################################
@@ -304,17 +307,16 @@ In addition to visualising the composition it is interesting to look at the corr
 
 ## Species
 
-```{r correlation.species, echo=FALSE, message=FALSE, fig.height=5, fig.width=10}
+```{r correlation.species, echo=FALSE, message=FALSE, fig.height=10, fig.width=10}
 grobs.sp <- list()
 for (i in 4:ncol(known.sp)){
 sample <- colnames(known.sp)[i]
 dat <- data.frame(species=known.sp$species,
                   Expected = known.sp$Expected)
 dat[,sample] <- unlist(known.sp[,i])
-p <- ggplot(dat, aes_string(x=sample, y="Expected")) + geom_point() + theme_bw() + stat_smooth(method="lm") + geom_label_repel(label=dat$species)
+p <- ggplot(dat, aes_string(x=sample, y="Expected")) + geom_point() + theme_bw() + stat_smooth(method="lm") + geom_label_repel(label=dat$species) + stat_cor()
 grobs.sp[[i-3]] <- p
 }
-
 grid.arrange(grobs=grobs.sp, ncol=2)
 
 ```
@@ -322,14 +324,14 @@ grid.arrange(grobs=grobs.sp, ncol=2)
 
 ## Genus
 
-```{r correlation.genus, echo=FALSE, message=FALSE, fig.height=5, fig.width=10}
+```{r correlation.genus, echo=FALSE, message=FALSE, fig.height=10, fig.width=10}
 grobs.ge <- list()
 for (i in 4:ncol(known.ge)){
 sample <- colnames(known.ge)[i]
 dat <- data.frame(genus=known.ge$genus,
                   Expected = known.ge$Expected)
 dat[,sample] <- unlist(known.ge[,i])
-p <- ggplot(dat, aes_string(x=sample, y="Expected")) + geom_point() + theme_bw() + stat_smooth(method="lm") + geom_label_repel(label=dat$genus)
+p <- ggplot(dat, aes_string(x=sample, y="Expected")) + geom_point() + theme_bw() + stat_smooth(method="lm") + geom_label_repel(label=dat$genus) + stat_cor()
 grobs.ge[[i-3]] <- p
 }
 grid.arrange(grobs=grobs.ge, ncol=2)
