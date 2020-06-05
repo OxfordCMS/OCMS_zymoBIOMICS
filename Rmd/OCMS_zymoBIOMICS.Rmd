@@ -34,7 +34,7 @@ The analysis below contains two methods that we use (and are recommended) to ana
 |Cryptococcus neoformans   | NA                   | 2                                |
 
 
-```{r setup, include=FALSE}
+```{r setup.chunks, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(cache = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
@@ -207,6 +207,90 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
     result <- bind_rows(result)
 }
 
+#####################################################################
+#####################################################################
+#####################################################################
+
+runPCA <- function(df, scale=TRUE){
+
+    pc <- prcomp(t(df), scale=scale)
+    return (pc)
+}
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+getVE <- function(pc, component="PC1"){
+
+    pve <- summary(pc)$importance[,component][[2]]
+    return (pve)
+}
+
+
+#####################################################################
+#####################################################################
+#####################################################################
+
+plotPrincipleComponents <- function(pc, metadata, colourby="none", shapeby="none", group="none", continuous=FALSE,  pcs=c("PC1", "PC2")){
+
+    # covariate must be in same order as pc rownames
+
+    # get variance explained for each component
+    ve1 <- getVE(pc, component=pcs[1])
+    ve2 <- getVE(pc, component=pcs[2])
+
+    ve1 <- round(ve1, 2)*100
+    ve2 <- round(ve2, 2)*100
+
+    # get data frame of components
+    pca <- data.frame(pc$x)
+
+    # add conditions
+    if (colourby == "none"){
+        pca$condition <- "none"}else{
+    pca$condition <- metadata[,colourby]}
+
+    # add shape
+    if (shapeby == "none"){
+        pca$shape <- "none"}else{
+    pca$shape <- metadata[,shapeby]}
+
+    if (group == "none"){
+        pca$group <- "none"}else{
+    pca$group <- metadata[,group]}
+
+    if (continuous==FALSE){
+       pca$condition <- factor(pca$condition, levels=unique(pca$condition))
+    }
+
+    # plot
+    pc1 <- pcs[1]
+    pc2 <- pcs[2]
+
+    # labels
+    xlabel <- paste(pc1, ve1, sep=" (")
+    xlabel <- paste(xlabel, "%", sep="")
+    xlabel <- paste(xlabel, ")", sep="")
+    ylabel <- paste(pc2, ve2, sep=" (")
+    ylabel <- paste(ylabel, "%", sep="")	
+    ylabel <- paste(ylabel, ")", sep="")
+
+    n <- length(unique(pca$condition))
+    colours <- rainbow(n, s=0.7, v=0.6)
+    
+    plot1 <- ggplot(pca, aes_string(x=pc1, y=pc2, group="group", colour="condition", shape="shape"))
+    plot2 <- plot1 + geom_point(size=5, alpha=0.8)
+    plot3 <- plot2 + theme_bw() 
+    plot4 <- plot3 + xlab(xlabel) + ylab(ylabel)
+    if (continuous==TRUE){
+        plot4 <- plot4 + scale_colour_gradient()}
+    else{
+        plot4 <- plot4 + scale_colour_manual(values=colours)
+	}
+    return(plot4) 
+}
+
 ```
 
 ```{r choose.annotations, echo=FALSE, message=FALSE}
@@ -272,13 +356,21 @@ It is useful to visualise how the predicted composition of the standards compare
 toplot.sp <- relabundance
 species <- unlist(strsplit(rownames(toplot.sp), "\\|"))
 species <- gsub("s__", "", species[seq(7, length(species),7)])
-toplot.sp$species <- species
+toplot.sp <- aggregate(toplot.sp, list(species), sum)
+rownames(toplot.sp) <- toplot.sp$Group.1
+toplot.sp <- toplot.sp[,2:ncol(toplot.sp)]
+toplot.sp$species <- rownames(toplot.sp)
+
 known.sp <- merge(annotations, toplot.sp, by.x="species", by.y="species", all.x=TRUE, all.y=FALSE)
+known.sp[is.na(known.sp)] <- 0
+
 
 # set up colours
 colours.sp <- brewer.pal(n=nrow(known.sp), name = "Set3")
 known.sp.m <- melt(known.sp)
-ggplot(known.sp.m, aes(x=variable, y=value, fill=species)) + geom_bar(stat="identity") + theme_bw() + scale_fill_manual(values=colours.sp) + xlab("") + ylab("% reads")
+known.sp.m$variable <- factor(known.sp.m$variable, levels=colnames(known.sp[3:ncol(known.sp)]))
+
+ggplot(known.sp.m, aes(x=variable, y=value, fill=species)) + geom_bar(stat="identity") + theme_bw() + scale_fill_manual(values=colours.sp) + xlab("") + ylab("% reads") + theme(axis.text.x=element_text(angle=45, vjust=1, hjust=1))
 ```
 
 ## Genus
@@ -286,7 +378,7 @@ ggplot(known.sp.m, aes(x=variable, y=value, fill=species)) + geom_bar(stat="iden
 ```{r composition.genus, echo=FALSE, message=FALSE, fig.height=5, fig.width=7}
 
 toplot.ge <- relabundance
-genus <- unlist(strsplit(rownames(toplot.sp), "\\|"))
+genus <- unlist(strsplit(rownames(toplot.ge), "\\|"))
 genus <- gsub("g__", "", genus[seq(6, length(genus),7)])
 toplot.ge <- aggregate(toplot.ge, list(genus), sum)
 rownames(toplot.ge) <- toplot.ge$Group.1
@@ -294,10 +386,13 @@ toplot.ge <- toplot.ge[,2:ncol(toplot.ge)]
 toplot.ge$genus <- rownames(toplot.ge)
 known.ge <- merge(annotations, toplot.ge, by.x="genus", by.y="genus", all.x=TRUE, all.y=FALSE)
 
+
 # set up colours
 colours.ge <- brewer.pal(n=nrow(known.ge), name = "Set3")
 known.ge.m <- melt(known.ge)
-ggplot(known.ge.m, aes(x=variable, y=value, fill=genus)) + geom_bar(stat="identity") + theme_bw() + scale_fill_manual(values=colours.ge) + xlab("") + ylab("% reads")
+known.ge.m$variable <- factor(known.ge.m$variable, levels=colnames(known.ge[3:ncol(known.ge)]))
+
+ggplot(known.ge.m, aes(x=variable, y=value, fill=genus)) + geom_bar(stat="identity") + theme_bw() + scale_fill_manual(values=colours.ge) + xlab("") + ylab("% reads") + theme(axis.text.x=element_text(angle=45, vjust=1, hjust=1))
 
 ```
 
@@ -335,5 +430,52 @@ p <- ggplot(dat, aes_string(x=sample, y="Expected")) + geom_point() + theme_bw()
 grobs.ge[[i-3]] <- p
 }
 grid.arrange(grobs=grobs.ge, ncol=2)
+
+```
+
+# Principle components analysis
+
+If there are multiple standards samples it may be of interest to see how well each sample clusters with the expected values. This analysis is performed below at each level (species and genus).
+
+## Species
+
+```{r pca.sp, echo=FALSE, message=FALSE, fig.height=5, fig.width=6}
+
+relab.sp <- merge(annotations, toplot.sp, by.x="species", by.y="species", all.x=TRUE, all.y=FALSE)
+relab.sp[is.na(relab.sp)] <- 0
+rownames(relab.sp) <- relab.sp$species
+relab.sp <- relab.sp[,c(3:ncol(relab.sp))]
+relab.sp <- log10(relab.sp + 1E-6)
+
+pc.sp <- runPCA(relab.sp, scale=FALSE)
+metadata.sp <- data.frame(sample=colnames(relab.sp), group=colnames(relab.sp))
+plotPrincipleComponents(pc.sp, metadata.sp, colourby="group") + scale_colour_manual(values=brewer.pal(ncol(relab.sp), "Set3"))
+
+```
+
+## Genus
+
+```{r pca.ge, echo=FALSE, message=FALSE, fig.height=5, fig.width=6}
+
+# something strange about objects not being able to pass
+# between chunks with rmarkdown. Need to look into this
+# this is a repeat from a previous chunk
+toplot.ge <- relabundance
+genus <- unlist(strsplit(rownames(toplot.ge), "\\|"))
+genus <- gsub("g__", "", genus[seq(6, length(genus),7)])
+toplot.ge <- aggregate(toplot.ge, list(genus), sum)
+rownames(toplot.ge) <- toplot.ge$Group.1
+toplot.ge <- toplot.ge[,2:ncol(toplot.ge)]
+toplot.ge$genus <- rownames(toplot.ge)
+
+relab.ge <- merge(annotations, toplot.ge, by.x="genus", by.y="genus", all.x=TRUE, all.y=FALSE)
+relab.ge[is.na(relab.ge)] <- 0
+rownames(relab.ge) <- relab.ge$genus
+relab.ge <- relab.ge[,c(3:ncol(relab.ge))]
+relab.ge <- log10(relab.ge + 1E-6)
+
+pc.ge <- runPCA(relab.ge, scale=FALSE)
+metadata.ge <- data.frame(sample=colnames(relab.ge), group=colnames(relab.ge))
+plotPrincipleComponents(pc.ge, metadata.ge, colourby="group") + scale_colour_manual(values=brewer.pal(ncol(relab.ge), "Set3"))
 
 ```
