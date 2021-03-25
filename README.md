@@ -21,7 +21,7 @@ The following dependencies (R packages) are required to run the report. The vers
 
 There are two input files that are required to build a report:
 
-* Counts table (e.g. species counts)
+* Counts table (this is abundance.dir/taxa_abundances.tsv as output by OCMS_16S dada2)
 * Configuration file (found in the config/ directory)
 
 These files should be both present in your working directory.
