@@ -35,7 +35,7 @@ The analysis below contains two methods that we use (and are recommended) to ana
 
 
 ```{r setup.chunks, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 knitr::opts_chunk$set(cache = FALSE)
 knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(out.extra = '')
@@ -53,7 +53,7 @@ library(ggrepel)
 library(ggpubr)
 
 # configuration
-source("OCMS_zymoBIOMICS_config.R")
+source("/gfs/devel/syen/OCMS_zymoBIOMICS/config/OCMS_zymoBIOMICS_config.R")
 ```
 
 ```{r annotations, echo=FALSE, message=FALSE}
@@ -198,9 +198,11 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
     }
     sample <- rep(colnames(relab)[i], length(tps))
     res <- data.frame(rank = seq(1:length(tps)),
-    true.pos.rate = tps,
-    sample = sample,
-    label = labels
+                      taxon = ab$taxon,
+                      abundance = ab$abundance,
+                      true.pos.rate = tps,
+                      sample = sample,
+                      label = labels
     )
     result[[i]] <- res
     }
@@ -291,7 +293,68 @@ plotPrincipleComponents <- function(pc, metadata, colourby="none", shapeby="none
     return(plot4) 
 }
 
+##############################################################################
+##############################################################################
+##############################################################################
+# function to plot out fraction of reads that are false positive and true positives in each sample
+# count-table = dataframe of counts at the level of interest
+# annotations = dataframe of true positives 
+# tax_level = one of c('genus','species')
+false_pos_count <- function(count_table, annotations, tax_level) {
+  
+  # prepare plot data
+  pdata <- melt(count_table) %>%
+    dplyr::mutate(tax_status = ifelse(.data[[tax_level]] %in%
+                                        annotations[,tax_level],
+                                      "TP","FP"))
+  p <- ggplot(pdata, aes(x = variable, y = value)) +
+    geom_bar(stat = 'identity', 
+             aes_string(fill = 'tax_status', colour = tax_level)) +
+    scale_colour_manual(values = rep('black', length(unique(pdata[,tax_level]))),
+                        guide = FALSE) +
+    scale_fill_manual(values=c('grey','purple')) +
+    xlab('Samples') +
+    ylab(sprintf("Read count, %s", tax_level)) +
+    theme_classic(12) +
+    theme(axis.text.x = element_text(angle=-90,hjust=0, vjust=1),
+          legend.title = element_blank())
+  
+  return(p)
+}
+
+################################################################################
+################################################################################
+################################################################################
+# function to list out taxa observed, ranked by abundance and coloured as TP or FP. produces at DT::datatable
+# relab_table = relative abundance table aggregated at level of interest
+# rank_table = output of truePosRate
+# annotations = dataframe of true positives
+# tax_level = one of c("genus","species")
+rank_tpfp <- function(rank_table) {
+  
+  out <- DT::datatable(rank_table[,c('sample','rank','taxon','abundance',
+                                'true.pos.rate','label')],
+                       selection = 'none',
+                       rownames = FALSE,
+                       filter='top',
+                       options = list(order=list(list(0, 'asc'),
+                                                 list(1,'asc')))) %>%
+    DT::formatRound(columns=c('true.pos.rate', 'abundance'), digits=1) %>%
+    DT::formatStyle('rank', 'label',
+                color = DT::styleEqual(c('TP','FP'),c('purple', 'grey'))) %>%
+    DT::formatStyle('taxon', 'label',
+                color = DT::styleEqual(c('TP','FP'),c('purple', 'grey'))) %>%
+    DT::formatStyle('abundance', 'label',
+                color = DT::styleEqual(c('TP','FP'),c('purple', 'grey'))) %>%
+    DT::formatStyle('true.pos.rate', 'label',
+                color = DT::styleEqual(c('TP','FP'),c('purple', 'grey'))) %>%
+    DT::formatStyle('label',
+                color = DT::styleEqual(c('TP','FP'),c('purple', 'grey')))
+   
+   return(out)
+}
 ```
+
 
 ```{r choose.annotations, echo=FALSE, message=FALSE}
 
@@ -479,3 +542,40 @@ metadata.ge <- data.frame(sample=colnames(relab.ge), group=colnames(relab.ge))
 plotPrincipleComponents(pc.ge, metadata.ge, colourby="group") + scale_colour_manual(values=brewer.pal(ncol(relab.ge), "Set3"))
 
 ```
+
+# False Positives Observed
+## Genus
+
+```{r ge.fp.bar}
+toplot.ge <- counts
+genus <- unlist(strsplit(rownames(toplot.ge), "\\|"))
+genus <- gsub("g__", "", genus[seq(6, length(genus),7)])
+toplot.ge <- aggregate(toplot.ge, list(genus), sum)
+rownames(toplot.ge) <- toplot.ge$Group.1
+toplot.ge <- toplot.ge[,2:ncol(toplot.ge)]
+toplot.ge$genus <- rownames(toplot.ge)
+
+false_pos_count(toplot.ge, annotations, 'genus')
+```
+
+```{r ge.fptp}
+rank_tpfp(tp.rate.ge)
+```
+
+## Species
+```{r sp.fp.bar}
+toplot.sp <- counts
+species <- unlist(strsplit(rownames(toplot.sp), "\\|"))
+species <- gsub("s__", "", species[seq(7, length(species),7)])
+toplot.sp <- aggregate(toplot.sp, list(species), sum)
+rownames(toplot.sp) <- toplot.sp$Group.1
+toplot.sp <- toplot.sp[,2:ncol(toplot.sp)]
+toplot.sp$species <- rownames(toplot.sp)
+
+false_pos_count(toplot.sp, annotations, 'species')
+```
+
+```{r sp.fptp}
+rank_tpfp(tp.rate.sp)
+```
+
