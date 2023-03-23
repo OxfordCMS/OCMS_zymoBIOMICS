@@ -21,3 +21,6 @@ standards_columns=""
 # define any cutoffs for true positive and composition analysis
 species_cutoff=0.01
 genus_cutoff=0.01
+
+# specify which taxonomic levels to show e.g. c("species","genus")
+show_levels <- c("species","genus")

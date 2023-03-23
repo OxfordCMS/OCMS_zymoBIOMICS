@@ -53,7 +53,7 @@ library(ggrepel)
 library(ggpubr)
 
 # configuration
-source("/gfs/devel/syen/OCMS_zymoBIOMICS/config/OCMS_zymoBIOMICS_config.R")
+source("OCMS_zymoBIOMICS_config.R")
 ```
 
 ```{r annotations, echo=FALSE, message=FALSE}
@@ -176,15 +176,15 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
     # calculate true positive rate
     result <- list()
     for (i in 1:ncol(relab)){
-    ab <- data.frame(taxon=rownames(relab), abundance = relab[,i])
-    ab <- ab[ab$abundance >= cutoff,]
-    ab <- ab[order(ab$abundance, decreasing=TRUE),]
-
-    trues <- 0
-    falses <- 0
-    tps <- c()
-    labels <- c()
-    if(nrow(ab) > 0) {
+      ab <- data.frame(taxon=rownames(relab), abundance = relab[,i])
+      ab <- ab[ab$abundance >= cutoff,]
+      ab <- ab[order(ab$abundance, decreasing=TRUE),]
+  
+      trues <- 0
+      falses <- 0
+      tps <- c()
+      labels <- c()
+      if(nrow(ab) > 0) {
         for (j in 1:nrow(ab)){
             if (ab[j,]$taxon %in% annotations[,level]){
                 trues = trues + 1
@@ -213,7 +213,10 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
                           sample = colnames(relab)[i],
                           label = NA)
       }
+      result[[i]] <- res
+    }
     result <- bind_rows(result)
+    
 }
 
 #####################################################################
@@ -398,30 +401,31 @@ If you are using 16S data then it is prudent to just consider the genus assignme
 
 Below is a plot of the true positive rate (ordered by abundance high -> low).  
 
-## Species
+`r if("species" %in% show_levels){"## Species"}`
 
-```{r tp.rate.se, echo=FALSE, message=FALSE, fig.height=5, fig.width=10}
+```{r tp.rate.se, eval="species" %in% show_levels, echo=FALSE, message=FALSE, fig.height=5, fig.width=10}
 
 tp.rate.sp <- truePosRate(relabundance, annotations, level="species", cutoff=species_cutoff)
 ggplot(tp.rate.sp, aes(x=rank, y=true.pos.rate, colour=label, group=sample)) + geom_point() + theme_bw() + ylab("TP / (TP + FP)") + scale_colour_manual(values=c("grey", "purple")) + facet_wrap(~sample, scale="free")
 ```
 
 
-## Genus
+`r if("genus" %in% show_levels){"## Genus"}`
 
-```{r tp.rate.ge, echo=FALSE, message=FALSE, fig.height=5, fig.width=10}
+```{r tp.rate.ge, eval="genus" %in% show_levels, echo=FALSE, message=FALSE, fig.height=5, fig.width=10}
 tp.rate.ge <- truePosRate(relabundance, annotations, level="genus", cutoff=genus_cutoff)
 ggplot(tp.rate.ge, aes(x=rank, y=true.pos.rate, colour=label, group=sample)) + geom_point() + theme_bw() + ylab("TP / (TP + FP)") + scale_colour_manual(values=c("grey", "purple")) + facet_wrap(~sample, scale="free")
 ```
+
 
 
 # Composition analysis
 
 It is useful to visualise how the predicted composition of the standards compares with the expected composition. Below we plot this at species and genus levels.
 
-## Species
+`r if("species" %in% show_levels){"## Species"}`
 
-```{r composition.species, echo=FALSE, message=FALSE, fig.height=5, fig.width=7}
+```{r composition.species, eval="species" %in% show_levels, echo=FALSE, message=FALSE, fig.height=5, fig.width=7}
 
 toplot.sp <- relabundance
 species <- unlist(strsplit(rownames(toplot.sp), "\\|"))
@@ -434,7 +438,6 @@ toplot.sp$species <- rownames(toplot.sp)
 known.sp <- merge(annotations, toplot.sp, by.x="species", by.y="species", all.x=TRUE, all.y=FALSE)
 known.sp[is.na(known.sp)] <- 0
 
-
 # set up colours
 colours.sp <- brewer.pal(n=nrow(known.sp), name = "Set3")
 known.sp.m <- melt(known.sp)
@@ -443,9 +446,10 @@ known.sp.m$variable <- factor(known.sp.m$variable, levels=colnames(known.sp[3:nc
 ggplot(known.sp.m, aes(x=variable, y=value, fill=species)) + geom_bar(stat="identity") + theme_bw() + scale_fill_manual(values=colours.sp) + xlab("") + ylab("% reads") + theme(axis.text.x=element_text(angle=45, vjust=1, hjust=1))
 ```
 
-## Genus
 
-```{r composition.genus, echo=FALSE, message=FALSE, fig.height=5, fig.width=7}
+`r if("genus" %in% show_levels){"## Genus"}`
+
+```{r composition.genus, eval="genus" %in% show_levels, echo=FALSE, message=FALSE, fig.height=5, fig.width=7}
 
 toplot.ge <- relabundance
 genus <- unlist(strsplit(rownames(toplot.ge), "\\|"))
@@ -456,23 +460,26 @@ toplot.ge <- toplot.ge[,2:ncol(toplot.ge)]
 toplot.ge$genus <- rownames(toplot.ge)
 known.ge <- merge(annotations, toplot.ge, by.x="genus", by.y="genus", all.x=TRUE, all.y=FALSE)
 
-
 # set up colours
 colours.ge <- brewer.pal(n=nrow(known.ge), name = "Set3")
 known.ge.m <- melt(known.ge)
 known.ge.m$variable <- factor(known.ge.m$variable, levels=colnames(known.ge[3:ncol(known.ge)]))
 
 ggplot(known.ge.m, aes(x=variable, y=value, fill=genus)) + geom_bar(stat="identity") + theme_bw() + scale_fill_manual(values=colours.ge) + xlab("") + ylab("% reads") + theme(axis.text.x=element_text(angle=45, vjust=1, hjust=1))
-
 ```
+
 
 # Correlation analysis
 
 In addition to visualising the composition it is interesting to look at the correlations between taxa abundances and expected taxa abundances. Note that correlation analyis does not make much sense for shotgun data as all of the bacterial species are at an equal abundance.
 
-## Species
+`r if("species" %in% show_levels){"## Species"}`
 
-```{r correlation.species, echo=FALSE, message=FALSE, fig.height=10, fig.width=10}
+```{r}
+fig_height = ceiling(length(standards_columns)/2) * 4
+```
+
+```{r correlation.species, eval="species" %in% show_levels, echo=FALSE, message=FALSE, fig.height=fig_height, fig.width=10}
 grobs.sp <- list()
 for (i in 4:ncol(known.sp)){
 sample <- colnames(known.sp)[i]
@@ -486,10 +493,9 @@ grid.arrange(grobs=grobs.sp, ncol=2)
 
 ```
 
+`r if("genus" %in% show_levels){"## Genus"}`
 
-## Genus
-
-```{r correlation.genus, echo=FALSE, message=FALSE, fig.height=10, fig.width=10}
+```{r correlation.genus, eval="genus" %in% show_levels, echo=FALSE, message=FALSE, fig.height=fig_height, fig.width=10}
 grobs.ge <- list()
 for (i in 4:ncol(known.ge)){
 sample <- colnames(known.ge)[i]
@@ -507,9 +513,9 @@ grid.arrange(grobs=grobs.ge, ncol=2)
 
 If there are multiple standards samples it may be of interest to see how well each sample clusters with the expected values. This analysis is performed below at each level (species and genus).
 
-## Species
+`r if("species" %in% show_levels) {"## Species"}`
 
-```{r pca.sp, echo=FALSE, message=FALSE, fig.height=5, fig.width=6}
+```{r pca.sp, eval="species" %in% show_levels, echo=FALSE, message=FALSE, fig.height=5, fig.width=6}
 
 relab.sp <- merge(annotations, toplot.sp, by.x="species", by.y="species", all.x=TRUE, all.y=FALSE)
 relab.sp[is.na(relab.sp)] <- 0
@@ -523,9 +529,10 @@ plotPrincipleComponents(pc.sp, metadata.sp, colourby="group") + scale_colour_man
 
 ```
 
-## Genus
 
-```{r pca.ge, echo=FALSE, message=FALSE, fig.height=5, fig.width=6}
+`r if("genus" %in% show_levels) {"## Genus"}`
+
+```{r pca.ge, eval="genus" %in% show_levels, echo=FALSE, message=FALSE, fig.height=5, fig.width=6}
 
 # something strange about objects not being able to pass
 # between chunks with rmarkdown. Need to look into this
@@ -551,26 +558,9 @@ plotPrincipleComponents(pc.ge, metadata.ge, colourby="group") + scale_colour_man
 ```
 
 # False Positives Observed
-## Genus
+`r if("species" %in% show_levels){"## Species"}`
 
-```{r ge.fp.bar}
-toplot.ge <- counts
-genus <- unlist(strsplit(rownames(toplot.ge), "\\|"))
-genus <- gsub("g__", "", genus[seq(6, length(genus),7)])
-toplot.ge <- aggregate(toplot.ge, list(genus), sum)
-rownames(toplot.ge) <- toplot.ge$Group.1
-toplot.ge <- toplot.ge[,2:ncol(toplot.ge)]
-toplot.ge$genus <- rownames(toplot.ge)
-
-false_pos_count(toplot.ge, annotations, 'genus')
-```
-
-```{r ge.fptp}
-rank_tpfp(tp.rate.ge)
-```
-
-## Species
-```{r sp.fp.bar}
+```{r sp.fp.bar, eval="species" %in% show_levels}
 toplot.sp <- counts
 species <- unlist(strsplit(rownames(toplot.sp), "\\|"))
 species <- gsub("s__", "", species[seq(7, length(species),7)])
@@ -582,7 +572,25 @@ toplot.sp$species <- rownames(toplot.sp)
 false_pos_count(toplot.sp, annotations, 'species')
 ```
 
-```{r sp.fptp}
+```{r sp.fptp, eval="species" %in% show_levels}
 rank_tpfp(tp.rate.sp)
+```
+
+`r if("genus" %in% show_levels){"## Genus"}`
+
+```{r ge.fp.bar, eval="genus" %in% show_levels}
+toplot.ge <- counts
+genus <- unlist(strsplit(rownames(toplot.ge), "\\|"))
+genus <- gsub("g__", "", genus[seq(6, length(genus),7)])
+toplot.ge <- aggregate(toplot.ge, list(genus), sum)
+rownames(toplot.ge) <- toplot.ge$Group.1
+toplot.ge <- toplot.ge[,2:ncol(toplot.ge)]
+toplot.ge$genus <- rownames(toplot.ge)
+
+false_pos_count(toplot.ge, annotations, 'genus')
+```
+
+```{r ge.fptp, eval="genus" %in% show_levels}
+rank_tpfp(tp.rate.ge)
 ```
 
