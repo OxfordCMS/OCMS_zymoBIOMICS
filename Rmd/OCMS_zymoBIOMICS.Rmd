@@ -184,28 +184,35 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
     falses <- 0
     tps <- c()
     labels <- c()
-    for (j in 1:nrow(ab)){
-        if (ab[j,]$taxon %in% annotations[,level]){
-            trues = trues + 1
-            labels <- append(labels, "TP")
-        }
-        else{
-            falses = falses + 1
-            labels <- append(labels, "FP")
-        }
-        tp <- trues/(trues + falses)
-        tps <- append(tps, tp)
-    }
-    sample <- rep(colnames(relab)[i], length(tps))
-    res <- data.frame(rank = seq(1:length(tps)),
-                      taxon = ab$taxon,
-                      abundance = ab$abundance,
-                      true.pos.rate = tps,
-                      sample = sample,
-                      label = labels
-    )
-    result[[i]] <- res
-    }
+    if(nrow(ab) > 0) {
+        for (j in 1:nrow(ab)){
+            if (ab[j,]$taxon %in% annotations[,level]){
+                trues = trues + 1
+                labels <- append(labels, "TP")
+            }
+            else{
+                falses = falses + 1
+                labels <- append(labels, "FP")
+            }
+            tp <- trues/(trues + falses)
+            tps <- append(tps, tp)
+        }  
+        
+        sample <- rep(colnames(relab)[i], length(tps))
+        res <- data.frame(rank = seq(1:length(tps)),
+                          taxon = ab$taxon,
+                          abundance = ab$abundance,
+                          true.pos.rate = tps,
+                          sample = sample,
+                          label = labels)
+      } else {
+        res <- data.frame(rank = 1,
+                          taxon = NA,
+                          abundance = NA,
+                          true.pos.rate = 0,
+                          sample = colnames(relab)[i],
+                          label = NA)
+      }
     result <- bind_rows(result)
 }
 
