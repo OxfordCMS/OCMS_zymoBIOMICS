@@ -68,7 +68,7 @@ source("OCMS_zymoBIOMICS_config.R")
 anno_ncbi_16s <- data.frame(species = c("Pseudomonas_aeruginosa",
 "Escherichia_coli",
 "Salmonella_enterica",
-"Lactobacillus_fermentum",
+"Limosilactobacillus_fermentum",
 "Enterococcus_faecalis",
 "Staphylococcus_aureus",
 "Listeria_monocytogenes",
@@ -76,7 +76,7 @@ anno_ncbi_16s <- data.frame(species = c("Pseudomonas_aeruginosa",
 genus = c("Pseudomonas",
 "Escherichia/Shigella",
 "Salmonella",
-"Lactobacillus",
+"Limosilactobacillus",
 "Enterococcus",
 "Staphylococcus",
 "Listeria",
@@ -118,9 +118,10 @@ anno_gtdb_16s$Expected <- anno_ncbi_16s$Expected
 #####################################################################
 
 anno_ncbi_shotgun <- anno_ncbi_16s
+anno_ncbi_shotgun$genus[anno_ncbi_shotgun$genus == "Escherichia/Shigella"] <- "Escherichia"
 anno_ncbi_shotgun$Expected <- c(12, 12, 12, 12, 12, 12, 12, 12)
 # add fungi
-fungi <- data.frame(species = c("Saccharomyces cerevisiae", "Cryptococcus neoformans"),
+fungi <- data.frame(species = c("Saccharomyces_cerevisiae", "Cryptococcus_neoformans"),
 genus = c("Saccharomyces", "Cryptococcus"),
 Expected = c(2, 2))
 anno_ncbi_shotgun <- bind_rows(anno_ncbi_shotgun, fungi)
@@ -135,7 +136,6 @@ anno_gtdb_shotgun <- anno_gtdb_16s
 gtdb_abundance <- anno_ncbi_shotgun$Expected + 0.5
 anno_gtdb_shotgun$Expected <- gtdb_abundance[1:8]
 ```
-
 
 ```{r utility_functions, echo=FALSE, message=FALSE}
 
@@ -158,7 +158,7 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
 
     # sort out rownames to match annotations
     if (level == "species"){
-        shortnames <- unlist(strsplit(rownames(relab), "\\|"))
+        shortnames <- unlist(strsplit(rownames(relab), ";"))
         shortnames <- gsub("s__", "", shortnames[seq(7, length(shortnames), 7)])
         
         # we can't use unassigned
@@ -166,7 +166,7 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
         shortnames <- shortnames[grep("unassigned", shortnames, invert=TRUE)]
                 
     }else if (level == "genus"){
-        shortnames <- unlist(strsplit(rownames(relab), "\\|"))
+        shortnames <- unlist(strsplit(rownames(relab), ";"))
         shortnames <- gsub("g__", "", shortnames[seq(6, length(shortnames), 7)])
     }
     relab <- aggregate(relab, list(shortnames), sum)
@@ -295,11 +295,7 @@ plotPrincipleComponents <- function(pc, metadata, colourby="none", shapeby="none
 
 ```{r choose.annotations, echo=FALSE, message=FALSE}
 
-if (annotations == "NCBI" & sequence_type == "16S"){
-annotations = anno_ncbi_16s}else if (annotations == "GTDB" & sequence_type == "16S"){
-annotations = anno_gtdb_16s}else if (annotations == "NCBI" & sequence_type == "shotgun"){
-annotations = anno_ncbi_shotgun}else if (annotations == "GTDB" & sequence_type == "shotgun"){
-annotations = anno_gtdb_shotgun}
+if (annotations == "NCBI" & sequence_type == "16S"){annotations = anno_ncbi_16s}else if (annotations == "GTDB" & sequence_type == "16S"){annotations = anno_gtdb_16s}else if (annotations == "NCBI" & sequence_type == "shotgun"){annotations = anno_ncbi_shotgun}else if (annotations == "GTDB" & sequence_type == "shotgun"){annotations = anno_gtdb_shotgun}
 
 ```
 
@@ -309,7 +305,7 @@ counts <- read.csv(counts_table, header=TRUE, stringsAsFactors=FALSE, sep="\t", 
 
 # If it's 16S data then need to sub the ";" with "|" and change NA to unassigned
 if (sequence_type == "16S"){
-    rownames(counts) <- gsub("__-", "unassigned", gsub("__NA", "unassigned", gsub(";", "\\|", rownames(counts))))
+#    rownames(counts) <- gsub("__-", "unassigned", gsub("__NA", "unassigned", gsub(";", "\\|", rownames(counts#))))
     rownames(counts) <- gsub("\\(.*", "", rownames(counts))}
 
 
@@ -354,7 +350,7 @@ It is useful to visualise how the predicted composition of the standards compare
 ```{r composition.species, echo=FALSE, message=FALSE, fig.height=5, fig.width=7}
 
 toplot.sp <- relabundance
-species <- unlist(strsplit(rownames(toplot.sp), "\\|"))
+species <- unlist(strsplit(rownames(toplot.sp), ";"))
 species <- gsub("s__", "", species[seq(7, length(species),7)])
 toplot.sp <- aggregate(toplot.sp, list(species), sum)
 rownames(toplot.sp) <- toplot.sp$Group.1
@@ -378,7 +374,7 @@ ggplot(known.sp.m, aes(x=variable, y=value, fill=species)) + geom_bar(stat="iden
 ```{r composition.genus, echo=FALSE, message=FALSE, fig.height=5, fig.width=7}
 
 toplot.ge <- relabundance
-genus <- unlist(strsplit(rownames(toplot.ge), "\\|"))
+genus <- unlist(strsplit(rownames(toplot.ge), ";"))
 genus <- gsub("g__", "", genus[seq(6, length(genus),7)])
 toplot.ge <- aggregate(toplot.ge, list(genus), sum)
 rownames(toplot.ge) <- toplot.ge$Group.1
@@ -461,7 +457,7 @@ plotPrincipleComponents(pc.sp, metadata.sp, colourby="group") + scale_colour_man
 # between chunks with rmarkdown. Need to look into this
 # this is a repeat from a previous chunk
 toplot.ge <- relabundance
-genus <- unlist(strsplit(rownames(toplot.ge), "\\|"))
+genus <- unlist(strsplit(rownames(toplot.ge), ";"))
 genus <- gsub("g__", "", genus[seq(6, length(genus),7)])
 toplot.ge <- aggregate(toplot.ge, list(genus), sum)
 rownames(toplot.ge) <- toplot.ge$Group.1
