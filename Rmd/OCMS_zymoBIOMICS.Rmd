@@ -29,7 +29,7 @@ The analysis below contains two methods that we use (and are recommended) to ana
 |Enterococcus faecalis     | 9.9                  | 12                               |
 |Staphylococcus aureus     | 15.5                 | 12                               |
 |Listeria monocytogenes    | 14.1                 | 12                               |
-|Bacillus subtilis         | 17.4                 | 12                               |
+|Bacillus spizizenii       | 17.4                 | 12                               |
 |Saccharomyces cerevisiae  | NA                   | 2                                |
 |Cryptococcus neoformans   | NA                   | 2                                |
 
@@ -72,7 +72,7 @@ anno_ncbi_16s <- data.frame(species = c("Pseudomonas_aeruginosa",
 "Enterococcus_faecalis",
 "Staphylococcus_aureus",
 "Listeria_monocytogenes",
-"Bacillus_subtilis"),
+"Bacillus_spizizenii"),
 genus = c("Pseudomonas",
 "Escherichia/Shigella",
 "Salmonella",
