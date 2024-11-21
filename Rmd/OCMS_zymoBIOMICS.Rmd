@@ -301,13 +301,19 @@ if (annotations == "NCBI" & sequence_type == "16S"){annotations = anno_ncbi_16s}
 
 ```{r read.data, echo=FALSE, message=FALSE}
 
-counts <- read.csv(counts_table, header=TRUE, stringsAsFactors=FALSE, sep="\t", row.names=1)
+# don't read with rownames as problematic for kraken2
+counts <- read.csv(counts_table, header=TRUE, stringsAsFactors=FALSE, sep="\t")
 
 # If it's 16S data then need to sub the ";" with "|" and change NA to unassigned
 if (sequence_type == "16S"){
-#    rownames(counts) <- gsub("__-", "unassigned", gsub("__NA", "unassigned", gsub(";", "\\|", rownames(counts#))))
-    rownames(counts) <- gsub("\\(.*", "", rownames(counts))}
-
+    rownames(counts) <- counts[,1]
+    counts <- counts[,2:ncol(counts)]
+    rownames(counts) <- gsub("\\(.*", "", rownames(counts))}else{
+    # aggregate kraken2
+    counts_to_agg <- counts[,2:ncol(counts)]
+    counts <- aggregate(counts_to_agg, by=list(counts[,1]), FUN="sum")
+    rownames(counts) <- counts$Group.1
+    counts <- counts[,2:ncol(counts)]}
 
 # subset based on column names
 counts <- counts[,standards_columns]
