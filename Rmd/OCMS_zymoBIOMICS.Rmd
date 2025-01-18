@@ -463,8 +463,9 @@ plotPrincipleComponents(pc.sp, metadata.sp, colourby="group") + scale_colour_man
 # between chunks with rmarkdown. Need to look into this
 # this is a repeat from a previous chunk
 toplot.ge <- relabundance
-genus <- unlist(strsplit(rownames(toplot.ge), ";"))
-genus <- gsub("g__", "", genus[seq(6, length(genus),7)])
+genus <- gsub(";s__.*", "", rownames(toplot.ge))
+genus <- get_shortnames(genus)
+
 toplot.ge <- aggregate(toplot.ge, list(genus), sum)
 rownames(toplot.ge) <- toplot.ge$Group.1
 toplot.ge <- toplot.ge[,2:ncol(toplot.ge)]
