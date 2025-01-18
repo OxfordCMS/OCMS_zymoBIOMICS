@@ -51,6 +51,7 @@ library(RColorBrewer)
 library(reshape)
 library(ggrepel)
 library(ggpubr)
+library(OCMSutility)
 
 # configuration
 source("OCMS_zymoBIOMICS_config.R")
@@ -158,17 +159,19 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
 
     # sort out rownames to match annotations
     if (level == "species"){
-        shortnames <- unlist(strsplit(rownames(relab), ";"))
-        shortnames <- gsub("s__", "", shortnames[seq(7, length(shortnames), 7)])
+        shortnames <- get_shortnames(rownames(relab))
+        #shortnames <- unlist(strsplit(rownames(relab), ";"))
+        #shortnames <- gsub("s__", "", shortnames[seq(7, length(shortnames), 7)])
         
         # we can't use unassigned
         relab <- relab[grep("unassigned", shortnames, invert=TRUE),]
         shortnames <- shortnames[grep("unassigned", shortnames, invert=TRUE)]
                 
     }else if (level == "genus"){
-        shortnames <- unlist(strsplit(rownames(relab), ";"))
-        shortnames <- gsub("g__", "", shortnames[seq(6, length(shortnames), 7)])
-    }
+        shortnames <- gsub(";s__.*", "", rownames(relab))
+        shortnames <- get_shortnames(shortnames)
+        #shortnames <- gsub("g__", "", shortnames[seq(6, length(shortnames), 7)])
+	    }
     relab <- aggregate(relab, list(shortnames), sum)
     rownames(relab) <- relab$Group.1
     relab <- relab[,2:ncol(relab)]
@@ -180,6 +183,7 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
     ab <- ab[ab$abundance >= cutoff,]
     ab <- ab[order(ab$abundance, decreasing=TRUE),]
 
+    print(ab)
     trues <- 0
     falses <- 0
     tps <- c()
@@ -356,8 +360,7 @@ It is useful to visualise how the predicted composition of the standards compare
 ```{r composition.species, echo=FALSE, message=FALSE, fig.height=5, fig.width=7}
 
 toplot.sp <- relabundance
-species <- unlist(strsplit(rownames(toplot.sp), ";"))
-species <- gsub("s__", "", species[seq(7, length(species),7)])
+species <- get_shortnames(rownames(relabundance))
 toplot.sp <- aggregate(toplot.sp, list(species), sum)
 rownames(toplot.sp) <- toplot.sp$Group.1
 toplot.sp <- toplot.sp[,2:ncol(toplot.sp)]
@@ -380,8 +383,8 @@ ggplot(known.sp.m, aes(x=variable, y=value, fill=species)) + geom_bar(stat="iden
 ```{r composition.genus, echo=FALSE, message=FALSE, fig.height=5, fig.width=7}
 
 toplot.ge <- relabundance
-genus <- unlist(strsplit(rownames(toplot.ge), ";"))
-genus <- gsub("g__", "", genus[seq(6, length(genus),7)])
+genus <- gsub(";s__.*", "", rownames(toplot.ge))
+genus <- get_shortnames(genus)
 toplot.ge <- aggregate(toplot.ge, list(genus), sum)
 rownames(toplot.ge) <- toplot.ge$Group.1
 toplot.ge <- toplot.ge[,2:ncol(toplot.ge)]
