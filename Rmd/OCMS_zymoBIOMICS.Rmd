@@ -160,8 +160,6 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
     # sort out rownames to match annotations
     if (level == "species"){
         shortnames <- get_shortnames(rownames(relab))
-        #shortnames <- unlist(strsplit(rownames(relab), ";"))
-        #shortnames <- gsub("s__", "", shortnames[seq(7, length(shortnames), 7)])
         
         # we can't use unassigned
         relab <- relab[grep("unassigned", shortnames, invert=TRUE),]
@@ -170,8 +168,8 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
     }else if (level == "genus"){
         shortnames <- gsub(";s__.*", "", rownames(relab))
         shortnames <- get_shortnames(shortnames)
-        #shortnames <- gsub("g__", "", shortnames[seq(6, length(shortnames), 7)])
 	    }
+
     relab <- aggregate(relab, list(shortnames), sum)
     rownames(relab) <- relab$Group.1
     relab <- relab[,2:ncol(relab)]
@@ -183,7 +181,6 @@ truePosRate <- function(relab, annotations, level="species", cutoff=0.01){
     ab <- ab[ab$abundance >= cutoff,]
     ab <- ab[order(ab$abundance, decreasing=TRUE),]
 
-    print(ab)
     trues <- 0
     falses <- 0
     tps <- c()
